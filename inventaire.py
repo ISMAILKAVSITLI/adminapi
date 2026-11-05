@@ -4,6 +4,9 @@ import json
 from datetime import datetime
 
 DOCKER_API_URL = os.environ.get("DOCKER_API_URL", "http://127.0.0.1:2375")
+NETBOX_URL = os.environ.get("NETBOX_URL", "http://127.0.0.1:8080")
+NETBOX_TOKEN = os.environ["NETBOX_TOKEN"]
+ENTETES_NETBOX = {"Authorization": f"Bearer {NETBOX_TOKEN}"}
 
 session = requests.Session()
 
@@ -45,9 +48,35 @@ for conteneur in conteneurs:
         info["memoire_mo"] = round(memoire_mo, 2)
     resultats.append(info)
 
+reponse_status = session.get(
+    f"{NETBOX_URL}/api/status/",
+    headers=ENTETES_NETBOX,
+    timeout=10,
+)
+reponse_status.raise_for_status()
+version_netbox = reponse_status.json()["netbox-version"]
+print(f"NetBox version {version_netbox}")
+
+url_types = f"{NETBOX_URL}/api/core/object-types/?limit=50"
+nb_types = 0
+
+while url_types:
+    reponse_types = session.get(url_types, headers=ENTETES_NETBOX, timeout=10)
+    reponse_types.raise_for_status()
+    page = reponse_types.json()
+    nb_types += len(page["results"])
+    total_annonce = page["count"]
+    url_types = page["next"]
+
+print(f"Types d'objets : {nb_types} comptés, {total_annonce} annoncés par NetBox")
+
 donnees = {
     "date": datetime.now().isoformat(),
     "conteneurs": resultats,
+    "netbox": {
+        "version": version_netbox,
+        "types_objets": nb_types,
+    },
 }
 
 with open("inventaire.json", "w", encoding="utf-8") as fichier:
