@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import requests
 import os
 import json
@@ -31,3 +31,22 @@ def get_containers():
         info = {"id": conteneur["Id"], "name": nom, "image": image, "state": etat}
         resultats.append(info)
     return resultats
+
+@app.get("/containers/{identifiant}")
+def lire(identifiant: str):
+    reponse = session.get(
+        f"{DOCKER_API_URL}/containers/{identifiant}/json",
+        timeout=10,
+    )
+    if reponse.status_code == 404:
+        raise HTTPException(status_code=404, detail="Conteneur inconnu ou non géré par l'API")
+    reponse.raise_for_status()
+    conteneur = reponse.json()
+    labels = conteneur["Config"]["Labels"] or {}
+    if labels.get("adminapi.managed") != "true":
+        raise HTTPException(status_code=404, detail="Conteneur non géré par l'API")
+    nom = conteneur["Name"].lstrip("/")
+    image = conteneur["Config"]["Image"]
+    etat = conteneur["State"]["Status"]
+    info = {"id": conteneur["Id"], "name": nom, "image": image, "state": etat}
+    return info
