@@ -1,4 +1,5 @@
 import requests
+import sys
 import os
 import json
 from datetime import datetime
@@ -10,14 +11,17 @@ ENTETES_NETBOX = {"Authorization": f"Bearer {NETBOX_TOKEN}"}
 
 session = requests.Session()
 
-reponse = session.get( 
-     f"{DOCKER_API_URL}/containers/json",
-    params={"all": "true"},
-    timeout=10,
-)
+try:
+    reponse = session.get( 
+        f"{DOCKER_API_URL}/containers/json",
+        params={"all": "true"},
+        timeout=10,
+    )
 
-reponse.raise_for_status()
-conteneurs = reponse.json()
+    reponse.raise_for_status()
+    conteneurs = reponse.json()
+except requests.RequestException as erreur:
+    sys.exit(f"Erreur : l'API Docker ne répond pas sur {DOCKER_API_URL}. Est elle démarrée ? ({erreur})")
 
 resultats = []
 demarres = 0
@@ -31,13 +35,16 @@ for conteneur in conteneurs:
 
     if etat == "running":
         demarres += 1
-        reponse_stats = session.get(
-            f"{DOCKER_API_URL}/containers/{conteneur['Id']}/stats",
-            params={"stream": "false"},
-            timeout=10,
-        )
-        reponse_stats.raise_for_status()
-        stats = reponse_stats.json()
+        try:
+            reponse_stats = session.get(
+                f"{DOCKER_API_URL}/containers/{conteneur['Id']}/stats",
+                params={"stream": "false"},
+                timeout=10,
+            )
+            reponse_stats.raise_for_status()
+            stats = reponse_stats.json()
+        except requests.RequestException as erreur:
+            sys.exit(f"Erreur : l'API Docker ne répond pas sur {DOCKER_API_URL}. Est elle démarrée ? ({erreur})")
         cpu, avant = stats["cpu_stats"], stats["precpu_stats"]
         delta_cpu = cpu["cpu_usage"]["total_usage"] - avant["cpu_usage"]["total_usage"]
         delta_systeme = cpu["system_cpu_usage"] - avant.get("system_cpu_usage", 0)
