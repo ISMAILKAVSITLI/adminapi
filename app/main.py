@@ -11,7 +11,7 @@ app = FastAPI(title="API d'administration de conteneurs")
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {"status": "ok"}
 
 @app.get("/containers")
 def get_containers():
