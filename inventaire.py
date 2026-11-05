@@ -1,9 +1,12 @@
 import requests
+import os
+
+DOCKER_API_URL = os.environ.get("DOCKER_API_URL", "http://127.0.0.1:2375")
 
 session = requests.Session()
 
 reponse = session.get( 
-    "http://127.0.0.1:2375/containers/json",
+     f"{DOCKER_API_URL}/containers/json",
     params={"all": "true"},
     timeout=10,
 )
